@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Лабораторная работа №4 — CUDA</title>
+    <style>
+        :root { --bg: #f8f9fa; --text: #212529; --primary: #198754; --border: #dee2e6; }
+        body { font-family: -apple-system, sans-serif; line-height: 1.6; color: var(--text); background: var(--bg); max-width: 1000px; margin: 0 auto; padding: 20px; }
+        h1, h2, h3 { color: #343a40; border-bottom: 2px solid var(--border); padding-bottom: 10px; }
+        h1 { text-align: center; border-bottom: none; font-size: 2.2em; }
+        .subtitle { text-align: center; color: #6c757d; margin-bottom: 40px; font-size: 1.1em; }
+        img { max-width: 100%; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin: 20px auto; display: block; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; background: white; }
+        th, td { padding: 12px; text-align: center; border: 1px solid var(--border); }
+        th { background: var(--primary); color: white; }
+        tr:nth-child(even) { background: #f2f2f2; }
+        code { background: #e9ecef; padding: 2px 6px; border-radius: 4px; font-family: monospace; }
+        .highlight { background: #d1e7dd; padding: 15px; border-left: 4px solid var(--primary); border-radius: 4px; margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <h1>Лабораторная работа №4</h1>
+    <div class="subtitle">Параллельное умножение матриц на GPU с использованием технологии CUDA</div>
+
+    <h2>1. Цель работы</h2>
+    <p>Изучение архитектуры графических процессоров (GPU) и технологии CUDA. Реализация алгоритма умножения квадратных матриц с использованием глобальной и разделяемой (shared) памяти. Исследование влияния конфигурации сетки блоков на производительность.</p>
+
+    <h2>2. Условия эксперимента</h2>
+    <ul>
+        <li><b>Оборудование:</b> вычислительный узел суперкомпьютера «Сергей Королёв» (GPU NVIDIA Tesla, узлы <code>n243</code> / <code>n250</code>).</li>
+        <li><b>Планировщик задач:</b> SLURM.</li>
+        <li><b>Технология:</b> CUDA 8.0.</li>
+        <li><b>Компилятор:</b> <code>nvcc</code>.</li>
+    </ul>
+
+    <h2>3. Реализация</h2>
+    <p>Были реализованы два варианта ядер CUDA:</p>
+    <ol>
+        <li><b>Наивное ядро (Naive):</b> каждый поток вычисляет один элемент матрицы C, напрямую обращаясь к глобальной памяти GPU. Это приводит к большому количеству транзакций к памяти (memory-bound).</li>
+        <li><b>Оптимизированное ядро (Tiled):</b> используется разделяемая память (<code>__shared__</code>). Блок потоков загружает плитку (tile) матриц A и B в быструю shared-память, синхронизируется через <code>__syncthreads()</code> и выполняет умножение. Это значительно снижает нагрузку на глобальную память.</li>
+    </ol>
+
+    <h2>4. Результаты замеров (время в миллисекундах)</h2>
+    <table>
+        <tr><th>Размер (N)</th><th>Tiled (8x8)</th><th>Tiled (16x16)</th><th>Tiled (32x32)</th><th>Naive (16x16)</th></tr>
+        <tr><td><b>256</b></td><td>0.3652</td><td>0.2387</td><td>0.2281</td><td>0.6060</td></tr>
+        <tr><td><b>512</b></td><td>2.8631</td><td>1.7082</td><td>1.5937</td><td>4.6105</td></tr>
+        <tr><td><b>1024</b></td><td>23.0026</td><td>13.2967</td><td>12.7107</td><td>36.2861</td></tr>
+        <tr><td><b>2048</b></td><td>181.5614</td><td>106.0933</td><td><b>99.1625</b></td><td>292.3870</td></tr>
+    </table>
+
+    <h2>5. Графики</h2>
+    <img src="img/naive_vs_tiled.png" alt="Naive vs Tiled">
+    <img src="img/block_sizes.png" alt="Влияние размера блока">
+
+    <h2>6. Анализ результатов</h2>
+    <div class="highlight">
+        <p><b>Эффективность Shared Memory:</b> На матрице N=2048 оптимизированное ядро (Tiled 32x32) выполнилось за <b>99 мс</b>, тогда как наивное ядро — за <b>292 мс</b>. Ускорение в ~3 раза достигнуто исключительно за счет кэширования данных в разделяемой памяти.</p>
+        <p><b>Влияние размера блока:</b> Блок 8x8 слишком мал (мало потоков, много блоков), поэтому работает медленнее. Блоки 16x16 и 32x32 показывают лучшие результаты. 32x32 дает максимальную производительность, так как лучше использует пропускную способность памяти, но требует много shared-памяти.</p>
+        <p><b>Сравнение с CPU:</b> В лабораторной работе №3 (MPI) умножение матрицы 2048x2048 на 1 ядре CPU заняло <b>20 626 мс</b>. GPU с использованием CUDA справился за <b>99 мс</b>. Ускорение составило <b>более чем в 200 раз</b>! Это наглядно демонстрирует мощь массивного параллелизма GPU.</p>
+    </div>
+
+    <h2>7. Вывод</h2>
+    <p>В ходе работы была успешно освоена технология CUDA. Реализованы и протестированы наивный и тайловый (tiled) алгоритмы умножения матриц. Подтверждено, что правильное использование иерархии памяти GPU (в частности, shared memory) критически важно для производительности. Технология CUDA показала колоссальное превосходство над CPU при решении задач линейной алгебры.</p>
+</body>
+</html>

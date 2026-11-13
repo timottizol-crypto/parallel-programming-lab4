@@ -1,0 +1,30 @@
+# Сгенерированные матрицы и результаты
+A.txt
+B.txt
+C_gpu.txt
+A_*.txt
+B_*.txt
+
+# Скомпилированные бинарники и объектные файлы
+main_cuda
+main_mpi
+*.o
+*.obj
+*.exe
+*.out
+
+# Логи задач SLURM
+slurm-*.out
+error.log
+
+# Временные файлы Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Настройки IDE и ОС
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
